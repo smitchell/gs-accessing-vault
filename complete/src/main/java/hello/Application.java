@@ -26,6 +26,7 @@ public class Application implements CommandLineRunner {
 	@Override
 	public void run(String... strings) throws Exception {
 
+		// See https://stackoverflow.com/questions/67096521/error-with-spring-approleauthentication-uri-is-not-absolute
 		AppRoleAuthenticationService appRoleAuth = new AppRoleAuthenticationService("6b7b3d81-d367-32e1-7b5d-aaad7160e5ea", "7115c554-eec4-8d2d-75be-43ad7124f290", "127.0.0.0", "http", "8200");
 		VaultEndpoint vaultEp = appRoleAuth.vaultEndpoint();
 		ClientAuthentication auth = appRoleAuth.clientAuthentication();

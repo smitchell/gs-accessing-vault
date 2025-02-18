@@ -7,6 +7,9 @@ import org.springframework.vault.authentication.ClientAuthentication;
 import org.springframework.vault.client.VaultEndpoint;
 import org.springframework.vault.config.AbstractVaultConfiguration;
 
+/**
+ * See https://stackoverflow.com/questions/67096521/error-with-spring-approleauthentication-uri-is-not-absolute
+ */
 public class AppRoleAuthenticationService extends AbstractVaultConfiguration {
 
     private String roleId;
