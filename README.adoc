@@ -1,0 +1,210 @@
+:spring_version: current
+:spring_boot_version: 3.3.0
+:toc:
+:icons: font
+:source-highlighter: prettify
+:project_id: gs-accessing-vault
+This guide walks you through the process of using https://projects.spring.io/spring-vault/[Spring Vault] to build an application that loads secrets from https://www.vaultproject.io/[HashiCorp Vault], a secrets management tool.
+
+== What you'll build
+
+You will load secrets stored in Vault and use the transit encryption backend.
+
+
+== What you'll need
+
+:java_version: 17
+include::https://raw.githubusercontent.com/spring-guides/getting-started-macros/main/prereq_editor_jdk_buildtools.adoc[]
+
+include::https://raw.githubusercontent.com/spring-guides/getting-started-macros/main/how_to_complete_this_guide.adoc[]
+
+include::https://raw.githubusercontent.com/spring-guides/getting-started-macros/main/hide-show-gradle.adoc[]
+
+include::https://raw.githubusercontent.com/spring-guides/getting-started-macros/main/hide-show-maven.adoc[]
+
+include::https://raw.githubusercontent.com/spring-guides/getting-started-macros/main/hide-show-sts.adoc[]
+
+[[initial]]
+== Install and launch HashiCorp Vault
+
+With your project set up, you can install and launch HashiCorp Vault.
+
+
+If you are using a Mac with homebrew, this is as simple as:
+
+    $ brew install vault
+
+Alternatively, download Vault for your operating system from https://www.vaultproject.io/downloads.html:
+
+    $ https://releases.hashicorp.com/vault/1.12.2/vault_1.12.2_darwin_amd64.zip
+    $ unzip vault_1.12.2_darwin_amd64.zip
+
+For other systems with package management, such as Redhat, Ubuntu, Debian, CentOS, and Windows, see instructions at https://www.vaultproject.io/docs/install/index.html.
+
+After you install Vault, launch it in a console window. This command also starts up a server process.
+
+    $ vault server --dev --dev-root-token-id="00000000-0000-0000-0000-000000000000"
+
+....
+WARNING! dev mode is enabled! In this mode, Vault runs entirely in-memory
+and starts unsealed with a single unseal key. The root token is already
+authenticated to the CLI, so you can immediately begin using Vault.
+
+You may need to set the following environment variables:
+
+    $ export VAULT_ADDR='http://127.0.0.1:8200'
+
+The unseal key and root token are displayed below in case you want to
+seal/unseal the Vault or re-authenticate.
+
+Unseal Key: OCOC25mSGUAnHz78mo0wZScMz5ZzbWFP/eC40XAwYXg=
+Root Token: 00000000-0000-0000-0000-000000000000
+
+Development mode should NOT be used in production installations!
+....
+
+== Set Up AppRole
+
+see [Configure AppRoles](https://developer.hashicorp.com/vault/docs/auth/approle#configuration[Success! Data written to: auth/approle/role/spring-test])
+
+=== Enable AppRoles
+....
+vault auth enable approle
+
+Success! Enabled approle auth method at: approle/
+....
+
+=== Create an AppRole
+
+....
+vault write auth/approle/role/spring-test \
+    token_type=batch \
+    secret_id_ttl=10m \
+    token_ttl=20m \
+    token_max_ttl=30m \
+    secret_id_num_uses=40
+
+Success! Data written to: auth/approle/role/spring-test
+....
+
+=== Fetch the Role ID
+
+....
+vault read auth/approle/role/spring-test/role-id
+
+Key        Value
+---        -----
+role_id    6b7b3d81-d367-32e1-7b5d-aaad7160e5ea
+....
+
+=== Get SecretID issued Against the AppRole
+
+....
+vault write -f auth/approle/role/spring-test/secret-id
+
+Key                   Value
+---                   -----
+secret_id             7115c554-eec4-8d2d-75be-43ad7124f290
+secret_id_accessor    9e85606d-9eb8-4d6a-f187-d497c681d425
+secret_id_num_uses    40
+secret_id_ttl         10m
+....
+
+=== Update Application Properties
+
+....
+spring.cloud.vault.authentication=APPROLE
+spring.cloud.vault.app-role.role-id=6b7b3d81-d367-32e1-7b5d-aaad7160e5ea
+spring.cloud.vault.app-role.secret-id=7115c554-eec4-8d2d-75be-43ad7124f290
+spring.cloud.vault.app-role.role=spring-test
+....
+
+
+
+
+You should see the following as one of the last output lines:
+
+....
+[INFO ] core: post-unseal setup complete
+....
+
+NOTE: The command above starts Vault in development mode using in-memory storage without transport encryption. This is fine
+for evaluating Vault locally. Make sure to use proper SSL certificates and a reliable storage backend for production use.
+Consult Vault's https://www.vaultproject.io/guides/production.html[Production Hardening guide] for further details.
+
+== Store secrets in Vault
+
+Vault is a secrets management system allowing you to store sensitive data which is encrypted at rest.
+It's ideal to store sensitive configuration details such as passwords, encryption keys, API keys.
+
+Launch another console window to store application configuration in Vault using the Vault command line.
+
+First, you need to set two environment variables to point the Vault CLI to the Vault endpoint and provide
+an authentication token.
+
+    $ export VAULT_TOKEN="00000000-0000-0000-0000-000000000000"
+    $ export VAULT_ADDR="http://127.0.0.1:8200"
+
+Now you can store a configuration key-value pairs inside Vault:
+
+    $ vault kv put secret/github github.oauth2.key=foobar
+
+=== Configure your application
+
+Here you configure your application with `application.properties`. Spring Cloud Vault is configured with the bootstrap context.
+
+`src/main/resources/application.properties`
+[source,properties]
+----
+include::complete/src/main/resources/application.properties[]
+----
+
+== Create an Application class
+
+Here you create an Application class with all the components.
+
+`src/main/java/hello/Application.java`
+[source,java,tabsize=2]
+----
+include::complete/src/main/java/hello/Application.java[]
+----
+
+Spring Cloud Vault uses `VaultOperations` to interact with Vault. Properties from Vault get mapped to
+`MyConfiguration` for type-safe access. `@EnableConfigurationProperties(MyConfiguration.class)` enables configuration property
+mapping and registers a `MyConfiguration` bean.
+
+`Application` includes a `main()` method that autowires an instance of `MyConfiguration`.
+
+include::https://raw.githubusercontent.com/spring-guides/getting-started-macros/main/build_an_executable_jar_mainhead.adoc[]
+include::https://raw.githubusercontent.com/spring-guides/getting-started-macros/main/build_an_executable_jar_with_both.adoc[]
+
+As our `Application` implements `CommandLineRunner`, the `run` method is invoked automatically when boot
+starts. You should see something like this:
+....
+Value of github.oauth2.key
+-------------------------------
+foobar
+-------------------------------
+
+Encrypted value
+-------------------------------
+vault:v1:2wgVE2PXiR9o55xbyur5KHJl8IwyGDkDU4l1SZScUq6BuqZYgTopwvc4
+-------------------------------
+
+Decrypted value
+-------------------------------
+Secure message
+-------------------------------
+....
+
+
+NOTE: Vault's secret backend compares well to a document store that uses URIs to identify documents. Documents are JSON-based that allows convenient object mapping of Vault data.
+
+
+== Summary
+
+Congratulations! You set up a Vault server and wrote a simple application that uses Spring Vault to read
+secrets and encrypt data with a strong cipher — all without the headache of
+implementing key management, a cipher mode, and padding.
+
+include::https://raw.githubusercontent.com/spring-guides/getting-started-macros/main/footer.adoc[]
