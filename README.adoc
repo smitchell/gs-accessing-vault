@@ -32,7 +32,8 @@ With your project set up, you can install and launch HashiCorp Vault.
 
 If you are using a Mac with homebrew, this is as simple as:
 
-    $ brew install vault
+    $ brew tap hashicorp/tap
+    $ brew install hashicorp/tap/vault
 
 Alternatively, download Vault for your operating system from https://www.vaultproject.io/downloads.html:
 
@@ -63,65 +64,6 @@ Root Token: 00000000-0000-0000-0000-000000000000
 Development mode should NOT be used in production installations!
 ....
 
-== Set Up AppRole
-
-see [Configure AppRoles](https://developer.hashicorp.com/vault/docs/auth/approle#configuration[Success! Data written to: auth/approle/role/spring-test])
-
-=== Enable AppRoles
-....
-vault auth enable approle
-
-Success! Enabled approle auth method at: approle/
-....
-
-=== Create an AppRole
-
-....
-vault write auth/approle/role/spring-test \
-    token_type=batch \
-    secret_id_ttl=10m \
-    token_ttl=20m \
-    token_max_ttl=30m \
-    secret_id_num_uses=40
-
-Success! Data written to: auth/approle/role/spring-test
-....
-
-=== Fetch the Role ID
-
-....
-vault read auth/approle/role/spring-test/role-id
-
-Key        Value
----        -----
-role_id    6b7b3d81-d367-32e1-7b5d-aaad7160e5ea
-....
-
-=== Get SecretID issued Against the AppRole
-
-....
-vault write -f auth/approle/role/spring-test/secret-id
-
-Key                   Value
----                   -----
-secret_id             7115c554-eec4-8d2d-75be-43ad7124f290
-secret_id_accessor    9e85606d-9eb8-4d6a-f187-d497c681d425
-secret_id_num_uses    40
-secret_id_ttl         10m
-....
-
-=== Update Application Properties
-
-....
-spring.cloud.vault.authentication=APPROLE
-spring.cloud.vault.app-role.role-id=6b7b3d81-d367-32e1-7b5d-aaad7160e5ea
-spring.cloud.vault.app-role.secret-id=7115c554-eec4-8d2d-75be-43ad7124f290
-spring.cloud.vault.app-role.role=spring-test
-....
-
-
-
-
 You should see the following as one of the last output lines:
 
 ....
@@ -148,6 +90,66 @@ an authentication token.
 Now you can store a configuration key-value pairs inside Vault:
 
     $ vault kv put secret/github github.oauth2.key=foobar
+
+== Set Up AppRole
+
+see [Configure AppRoles](https://developer.hashicorp.com/vault/docs/auth/approle#configuration)
+
+=== Enable AppRoles
+....
+vault auth enable approle
+
+Success! Enabled approle auth method at: approle/
+....
+
+=== Create an AppRole
+
+Note: the secret_id ttl is only 10 minutes, so if you and to test over longer periods, you will need to recreate the secret_id. You can run this command as many times as you need.
+
+....
+vault write auth/approle/role/spring-test \
+    token_type=batch \
+    secret_id_ttl=10m \
+    token_ttl=20m \
+    token_max_ttl=30m \
+    secret_id_num_uses=40
+
+Success! Data written to: auth/approle/role/spring-test
+....
+
+=== Fetch the Role ID
+
+....
+vault read auth/approle/role/spring-test/role-id
+
+Key        Value
+---        -----
+role_id    *REDACTED*
+....
+
+=== Get SecretID issued Against the AppRole
+
+....
+vault write -f auth/approle/role/spring-test/secret-id
+
+Key                   Value
+---                   -----
+secret_id             *REDACTED*
+secret_id_accessor    *REDACTED*
+secret_id_num_uses    40
+secret_id_ttl         10m
+....
+
+=== Update Application Properties
+
+....
+spring.cloud.vault.authentication=APPROLE
+spring.cloud.vault.app-role.role-id=*REDACTED*
+spring.cloud.vault.app-role.secret-id=*REDACTED*
+spring.cloud.vault.app-role.role=spring-test
+spring.cloud.vault.uri=http://${VAULT_HOST:localhost}:${VAULT_POST:8200}
+# spring.cloud.vault.app-role.app-role-path=approle
+....
 
 === Configure your application
 
@@ -200,6 +202,12 @@ Secure message
 
 NOTE: Vault's secret backend compares well to a document store that uses URIs to identify documents. Documents are JSON-based that allows convenient object mapping of Vault data.
 
+== Current State of Code
+
+....
+org.springframework.vault.VaultException: Status 403 Forbidden [secret]: 1 error occurred:
+	* permission denied
+....
 
 == Summary
 
